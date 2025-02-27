@@ -5,8 +5,8 @@ from pathlib import Path
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    page_title='Einder Investments Portfolio Dashboard',
+    page_icon='https://einderinvestments.nl/wp-content/uploads/2024/09/Horizontaal-Wit.png', # This is an emoji shortcode. Could be a URL too.
 )
 
 # -----------------------------------------------------------------------------
@@ -64,11 +64,11 @@ gdp_df = get_gdp_data()
 
 # Set the title that appears at the top of the page.
 '''
-# :earth_americas: GDP dashboard
+# :bar_chart: Einder Investments Dashboard
 
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
+Browse portfolio data of Einder Investments. Updated regularly to reflect current market conditions, strategy changes and performance.
+You can find a performance chart, portfolio statistics and a table with all current holdings. 
+For inquiries: info@einderinvestments.nl
 '''
 
 # Add some spacing
