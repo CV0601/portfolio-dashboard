@@ -1,6 +1,6 @@
 # 📊: Einder Investments Portfolio Dashboard
 
-A simple Streamlit app showing the portfolio performance of Einder Investments
+A simple Streamlit app showing the portfolio performance of Einder Investments using IBKR API.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://einderinvestments-portfolio.streamlit.app/?utm_medium=oembed)
 
@@ -11,8 +11,11 @@ A simple Streamlit app showing the portfolio performance of Einder Investments
    ```
    $ pip install -r requirements.txt
    ```
+2. Install IB API manually:
+   - Download from https://interactivebrokers.github.io
+   - Follow installation instructions
 
-2. Run the app
+3. Run the app
 
    ```
    $ streamlit run streamlit_app.py

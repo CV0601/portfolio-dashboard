@@ -1,9 +1,5 @@
-ib_insync
-time
-pandas
-send_email
-ibapi.client 
-ibapi.wrapper
-threading 
+pandas 
 datetime
-warnings
+streamlit
+pathlib
+dotenv
