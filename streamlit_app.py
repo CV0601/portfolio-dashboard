@@ -3,10 +3,12 @@ import pandas as pd
 import math
 from pathlib import Path
 
+logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
+
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
     page_title='Einder Investments Portfolio Dashboard',
-    page_icon='https://einderinvestments.nl/wp-content/uploads/2024/09/Horizontaal-Wit.png', # This is an emoji shortcode. Could be a URL too.
+    page_icon= logo_url, # This is an emoji shortcode. Could be a URL too.
 )
 
 # -----------------------------------------------------------------------------
@@ -63,13 +65,42 @@ gdp_df = get_gdp_data()
 # Draw the actual page
 
 # Set the title that appears at the top of the page.
-'''
-# :bar_chart: Einder Investments Dashboard
-
-Browse portfolio data of Einder Investments. Updated regularly to reflect current market conditions, strategy changes and performance.
-You can find a performance chart, portfolio statistics and a table with all current holdings. 
-For inquiries: info@einderinvestments.nl
-'''
+st.markdown(
+    """
+    <style>
+        .title-container {
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centers content horizontally */
+            text-align: center;
+            margin-top: 20px; /* Adjust spacing from top */
+        }
+        .title-container img {
+            width: 240px; /* Adjust logo size */
+            margin-right: 30px; /* Space between logo and text */
+        }
+        .title-container h1 {
+            margin: 0; /* Remove default margin */
+            font-size: 2.5em; /* Adjust title size */
+        }
+        .content {
+            text-align: left; /* Centers the rest of the text */
+        }
+    </style>
+    
+    <div class="title-container">
+        <img src="https://einderinvestments.nl/wp-content/uploads/2024/09/Horizontaal-Wit.png">
+        <h1>Dashboard</h1>
+    </div>
+    <br>
+    <div class="content">
+        <p>Browse portfolio data of Einder Investments. Updated regularly to reflect current market conditions, strategy changes, and performance.</p>
+        <p>You can find a performance chart, portfolio statistics, and a table with all current holdings.</p>
+        <p><strong>For inquiries:</strong> <a href="mailto:info@einderinvestments.nl">info@einderinvestments.nl</a></p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # Add some spacing
 ''
