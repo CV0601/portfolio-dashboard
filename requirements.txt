@@ -1,2 +1,9 @@
-streamlit
+ib_insync
+time
 pandas
+send_email
+ibapi.client 
+ibapi.wrapper
+threading 
+datetime
+warnings
