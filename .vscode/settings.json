@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./code/pythonclient",
+        "./code/pythonclient"
+    ]
+}

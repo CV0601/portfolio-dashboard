@@ -12,8 +12,13 @@ A simple Streamlit app showing the portfolio performance of Einder Investments u
    $ pip install -r requirements.txt
    ```
 2. Install IB API manually:
-   - Download from https://interactivebrokers.github.io
-   - Follow installation instructions
+   - Open a virtual environment
+   - move to directory $ cd /portfolio-dashboard/code/pythonclient/
+   - Run the setup.py provided by IBKR
+
+   ```
+   $ python setup.py install
+   ```
 
 3. Run the app
 

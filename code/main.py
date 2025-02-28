@@ -1,9 +1,9 @@
 import time
 import pandas as pd
-from code.send_email import send_email
+from send_email import send_email
 from ibapi.client import *
 from ibapi.wrapper import *
-from threading import Thread
+from threading import Thread , Lock
 import datetime as dt
 import warnings
 
@@ -13,16 +13,29 @@ class TradingApp(EWrapper, EClient):
         self.connect(host, port, client_id)
         self.thread = Thread(target=self.run)
         self.thread.start()
+        self.batch_data = []
+        self.lock = Lock()
+        self.batch_threshold = 5
+
 
         time.sleep(1)  # Give some time to establish connection
         if self.isConnected():
-            print("Successfully connected to IB API")
+            print(f"Successfully connected to IB API")
         else:
-            print("Failed to connect to IB API")
+            raise ConnectionError("Failed to connect to IB API, did you login to the IBKR TWS Application?")
         #Dataframes to store relevant information about current portfolio
         self.acc_summary = pd.DataFrame(columns=['Date','reqId', 'Account','Tag', 'Value', 'Currency'])
         self.pnl_summary = pd.DataFrame(columns=['Date','reqId', 'DailyPnL','UnrealizedPnL', 'RealizedPnL'])
         self.position_summary = pd.DataFrame(columns=['Date','account', 'contract', 'position', 'avgCost'])
+
+
+    def _add_to_batch(self, data, batch_index):
+        """Adds data to the corresponding sub-list in a thread-safe manner"""
+        with self.lock:
+            while len(self.batch_data) <= batch_index:
+                self.batch_data.append([])
+            
+            self.batch_data[batch_index].append(data)
 
     def accountSummary(self, reqId: int, account: str, tag: str, value: str,currency: str):
         """Receive summary of the current acount by providing the requested tag, their respective value and currency.
@@ -45,9 +58,11 @@ class TradingApp(EWrapper, EClient):
             'Value': value,
             'Currency': currency
         }
-        df_data = pd.DataFrame([data])
-        self.acc_summary = pd.concat([self.acc_summary,df_data],ignore_index=True)
-        del df_data
+        self._add_to_batch(data,0)
+        if len(self.batch_data[0])>=self.batch_threshold:
+            df_data = pd.DataFrame(self.batch_data[0])
+            self.acc_summary = pd.concat([self.acc_summary,df_data],ignore_index=True)
+            self.batch_data[0].clear()
 
     
     def accountSummaryEnd(self, reqId: int):
@@ -73,10 +88,11 @@ class TradingApp(EWrapper, EClient):
               "UnrealizedPnL": unrealizedPnL,
               "RealizedPnL": realizedPnL
               }
-        df_data = pd.DataFrame([data])
-        self.pnl_summary = pd.concat([self.pnl_summary,df_data],ignore_index=True)
-        del df_data
-
+        self._add_to_batch(data,1)
+        if len(self.batch_data[1])>=self.batch_threshold:
+            df_data = pd.DataFrame(self.batch_data[1])
+            self.pnl_summary = pd.concat([self.pnl_summary,df_data],ignore_index=True)
+            self.batch_data[1].clear()
 
     def position(self, account: str, contract: Contract, position: Decimal, avgCost: float):
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -89,13 +105,14 @@ class TradingApp(EWrapper, EClient):
               "position": position,
               "avgCost": avgCost
               }
-        df_data = pd.DataFrame([data])
-        self.position_summary = pd.concat([self.position_summary,df_data],ignore_index=True)
-        del df_data
+        self._add_to_batch(data,2)
+        if len(self.batch_data[2])>=self.batch_threshold:
+            df_data = pd.DataFrame(self.batch_data[2])
+            self.position_summary = pd.concat([self.position_summary,df_data],ignore_index=True)
+            self.batch_data[2].clear()
     
     def positionEnd(self):
         print("PositionEnd")
-
 
 
     def disconnect_api(self):
@@ -135,6 +152,7 @@ def main():
     daily_update(client)
     # portfolio_positions_overview(client)
     client.disconnect_api()
+
 
 
 if __name__ == "__main__":
