@@ -13,10 +13,6 @@ class TradingApp(EWrapper, EClient):
         self.connect(host, port, client_id)
         self.thread = Thread(target=self.run)
         self.thread.start()
-        self.batch_data = []
-        self.lock = Lock()
-        self.batch_threshold = 5
-
 
         time.sleep(1)  # Give some time to establish connection
         if self.isConnected():
@@ -24,21 +20,11 @@ class TradingApp(EWrapper, EClient):
         else:
             raise ConnectionError("Failed to connect to IB API, did you login to the IBKR TWS Application?")
         #Dataframes to store relevant information about current portfolio
-        self.acc_summary = pd.DataFrame(columns=['Date','reqId', 'Account','Tag', 'Value', 'Currency'])
-        self.pnl_summary = pd.DataFrame(columns=['Date','reqId', 'DailyPnL','UnrealizedPnL', 'RealizedPnL'])
-        self.position_summary = pd.DataFrame(columns=['Date','account', 'contract', 'position', 'avgCost'])
-
-
-    def _add_to_batch(self, data, batch_index):
-        """Adds data to the corresponding sub-list in a thread-safe manner"""
-        with self.lock:
-            while len(self.batch_data) <= batch_index:
-                self.batch_data.append([])
-            self.batch_data[batch_index].append(data)
-        print(self.batch_data)
-        print('this is the size of cache data ', len(self.batch_data))
-        print('this is the length of pnl summary',len(self.batch_data[0]))
-
+        self.dataframes = {
+            "acc_summary": pd.DataFrame(columns=['Date','reqId', 'Account','Tag', 'Value', 'Currency']),
+            "pnl_summary": pd.DataFrame(columns=['Date','reqId', 'DailyPnL','UnrealizedPnL', 'RealizedPnL']),
+            "pos_summary": pd.DataFrame(columns=['Date','account', 'contract', 'position', 'avgCost'])
+            }
     def accountSummary(self, reqId: int, account: str, tag: str, value: str,currency: str):
         """Receive summary of the current acount by providing the requested tag, their respective value and currency.
 
@@ -60,12 +46,7 @@ class TradingApp(EWrapper, EClient):
             'Value': value,
             'Currency': currency
         }
-        self._add_to_batch(data,0)
-        if len(self.batch_data[0])>=self.batch_threshold:
-            df_data = pd.DataFrame(self.batch_data[0])
-            self.acc_summary = pd.concat([self.acc_summary,df_data],ignore_index=True)
-            self.batch_data[0].clear()
-
+        self._append_to_dataframe("acc_summary", data) 
     
     def accountSummaryEnd(self, reqId: int):
         # unsubscribe from account summary
@@ -90,11 +71,7 @@ class TradingApp(EWrapper, EClient):
               "UnrealizedPnL": unrealizedPnL,
               "RealizedPnL": realizedPnL
               }
-        self._add_to_batch(data,1)
-        if len(self.batch_data[1])>=self.batch_threshold:
-            df_data = pd.DataFrame(self.batch_data[1])
-            self.pnl_summary = pd.concat([self.pnl_summary,df_data],ignore_index=True)
-            self.batch_data[1].clear()
+        self._append_to_dataframe("pnl_summary", data) 
 
     def position(self, account: str, contract: Contract, position: Decimal, avgCost: float):
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -107,16 +84,19 @@ class TradingApp(EWrapper, EClient):
               "position": position,
               "avgCost": avgCost
               }
-        self._add_to_batch(data,2)
-        if len(self.batch_data[2])>=self.batch_threshold:
-            df_data = pd.DataFrame(self.batch_data[2])
-            self.position_summary = pd.concat([self.position_summary,df_data],ignore_index=True)
-            self.batch_data[2].clear()
+        self._append_to_dataframe("pos_summary", data) 
     
     def positionEnd(self):
         print("PositionEnd")
 
+    def _append_to_dataframe(self, df_key: str, data: dict):
+        """Append new data to the selected DataFrame."""
+        if df_key not in self.dataframes:
+            raise ValueError(f"DataFrame '{df_key}' does not exist!")
 
+        new_df = pd.DataFrame([data])
+        self.dataframes[df_key] = pd.concat([self.dataframes[df_key], new_df], ignore_index=True)
+        
     def disconnect_api(self):
         # check connection, if true disconnect
         if self.isConnected():
@@ -131,19 +111,16 @@ def daily_update(client):
     """
     client.reqAccountSummary(1, "All", "$LEDGER:BASE")
     time.sleep(2)
-    print(client.acc_summary, client.pnl_summary)
-    send_email(client.acc_summary, client.pnl_summary)
-    client.accountsummaryend(1)
-    client.disconnect_api()    
-
-    # client.reqPnL(2, "U14552292", "")
-    # time.sleep(2)
-    # if len(client.batch_data[1]) == client.batch_threshold: 
-    #     client.cancelPnL(2)
-    #     print('account pnl request canceled')
-    #     print(client.acc_summary, client.pnl_summary)
-    #     send_email(client.acc_summary, client.pnl_summary)
-    #     client.disconnect_api()
+    df_acc_summary = client.dataframes["acc_summary"]
+    client.accountSummaryEnd(1)
+        
+    client.reqPnL(2, "U14552292", "")
+    time.sleep(2)
+    df_pnl_summary = client.dataframes["pnl_summary"]
+    client.cancelPnL(2)
+    print('account pnl request canceled')
+    send_email(df_acc_summary, df_pnl_summary)
+    client.disconnect_api()
 
 def portfolio_positions_overview(client):
     client.reqPositions()
@@ -162,7 +139,6 @@ def main():
     except Exception as e: 
         print('the error occured:',{e})
         client.disconnect_api()
-
 
 
 if __name__ == "__main__":
