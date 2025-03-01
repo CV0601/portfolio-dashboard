@@ -8,6 +8,8 @@ import datetime as dt
 import pandas as pd
 
 def send_email(df_summary, df_pnl):
+    if df_summary.empty or df_pnl.empty:
+        raise ValueError("One of the Dataframes is empty!")
     # load environment variables
     dotenv_path = Path(r'C:\Users\caspe\Documents\python projects\tws trading\.env')
     load_dotenv(dotenv_path=dotenv_path)

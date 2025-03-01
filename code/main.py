@@ -34,8 +34,10 @@ class TradingApp(EWrapper, EClient):
         with self.lock:
             while len(self.batch_data) <= batch_index:
                 self.batch_data.append([])
-            
             self.batch_data[batch_index].append(data)
+        print(self.batch_data)
+        print('this is the size of cache data ', len(self.batch_data))
+        print('this is the length of pnl summary',len(self.batch_data[0]))
 
     def accountSummary(self, reqId: int, account: str, tag: str, value: str,currency: str):
         """Receive summary of the current acount by providing the requested tag, their respective value and currency.
@@ -128,15 +130,20 @@ def daily_update(client):
         client (Class): connection to IBKR api
     """
     client.reqAccountSummary(1, "All", "$LEDGER:BASE")
-    time.sleep(1)
-    client.cancelAccountSummary(1)
-    print('account summary request canceled')
-
-    client.reqPnL(2, "U14552292", "")
-    time.sleep(1)
-    client.cancelPnL(2)
-    print('account pnl request canceled')
+    time.sleep(2)
+    print(client.acc_summary, client.pnl_summary)
     send_email(client.acc_summary, client.pnl_summary)
+    client.accountsummaryend(1)
+    client.disconnect_api()    
+
+    # client.reqPnL(2, "U14552292", "")
+    # time.sleep(2)
+    # if len(client.batch_data[1]) == client.batch_threshold: 
+    #     client.cancelPnL(2)
+    #     print('account pnl request canceled')
+    #     print(client.acc_summary, client.pnl_summary)
+    #     send_email(client.acc_summary, client.pnl_summary)
+    #     client.disconnect_api()
 
 def portfolio_positions_overview(client):
     client.reqPositions()
@@ -148,10 +155,13 @@ def portfolio_positions_overview(client):
 
 
 def main():
-    client = TradingApp('127.0.0.1', 7496, 1)
-    daily_update(client)
-    # portfolio_positions_overview(client)
-    client.disconnect_api()
+    try:
+        client = TradingApp('127.0.0.1', 7496, 1)
+        daily_update(client)
+        # portfolio_positions_overview(client)
+    except Exception as e: 
+        print('the error occured:',{e})
+        client.disconnect_api()
 
 
 
