@@ -3,3 +3,4 @@ datetime
 streamlit
 pathlib
 dotenv
+mysql-connector-python
