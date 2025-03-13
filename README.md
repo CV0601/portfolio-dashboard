@@ -1,6 +1,6 @@
 # 📊: Einder Investments Portfolio Dashboard
 
-A simple Streamlit app showing the portfolio performance of Einder Investments using IBKR API.
+A simple Streamlit app showing the portfolio performance of Einder Investments using IBKR API and internal MySQL database.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://einderinvestments-portfolio.streamlit.app/?utm_medium=oembed)
 
@@ -11,14 +11,12 @@ A simple Streamlit app showing the portfolio performance of Einder Investments u
    ```
    $ pip install -r requirements.txt
    ```
-2. Install IB API manually:
-   - Open a virtual environment
-   - move to directory $ cd /portfolio-dashboard/code/pythonclient/
-   - Run the setup.py provided by IBKR
+2. Install MySQL
+   go to ...
+   login using your .env credentials
 
-   ```
-   $ python setup.py install
-   ```
+2. IB API requirement:
+   The IB API is included in this directory. Make sure you are running TWS or IB gateway.
 
 3. Run the app
 
