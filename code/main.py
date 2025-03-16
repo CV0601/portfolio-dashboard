@@ -120,7 +120,6 @@ def daily_update(client):
     client.cancelPnL(2)
     print('account pnl request canceled')
     send_email(df_acc_summary, df_pnl_summary)
-    client.disconnect_api()
 
 def portfolio_positions_overview(client):
     client.reqPositions()
@@ -138,6 +137,7 @@ def main():
         # portfolio_positions_overview(client)
     except Exception as e: 
         print('the error occured:',{e})
+    finally:    
         client.disconnect_api()
 
 
