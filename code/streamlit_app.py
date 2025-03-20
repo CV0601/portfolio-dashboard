@@ -5,26 +5,6 @@ import datetime as dt
 from pathlib import Path
 import mysql.connector
 
-# Load database credentials from secrets.toml
-db_config = st.secrets["connections.mysql"]
-
-def test_db_connection():
-    try:
-        # Connect to database
-        conn = mysql.connector.connect(
-            host=db_config["host"],
-            user=db_config["user"],
-            password=db_config["password"],
-            database=db_config["database"]
-        )
-        
-        if conn.is_connected():
-            print("✅ Successfully connected to the database")
-            return conn
-    except Exception as e:
-        print("❌ Connection failed: ", str(e))
-        return None
-
 logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
 date_today = dt.date.today()
 formatted_date_today = date_today.strftime('%d-%m-%Y')
