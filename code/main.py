@@ -9,22 +9,26 @@ import warnings
 
 class TradingApp(EWrapper, EClient):
     def __init__(self, host, port, client_id):
+        EWrapper.__init__(self, self)
         EClient.__init__(self, self)
         self.connect(host, port, client_id)
         self.thread = Thread(target=self.run)
         self.thread.start()
 
         time.sleep(1)  # Give some time to establish connection
+        # Check connection
         if self.isConnected():
             print(f"Successfully connected to IB API")
         else:
             raise ConnectionError("Failed to connect to IB API, did you login to the IBKR TWS Application?")
+        
         #Dataframes to store relevant information about current portfolio
         self.dataframes = {
             "acc_summary": pd.DataFrame(columns=['Date','reqId', 'Account','Tag', 'Value', 'Currency']),
             "pnl_summary": pd.DataFrame(columns=['Date','reqId', 'DailyPnL','UnrealizedPnL', 'RealizedPnL']),
             "pos_summary": pd.DataFrame(columns=['Date','account', 'contract', 'position', 'avgCost'])
             }
+        
     def accountSummary(self, reqId: int, account: str, tag: str, value: str,currency: str):
         """Receive summary of the current acount by providing the requested tag, their respective value and currency.
 
@@ -137,7 +141,7 @@ def main():
         # portfolio_positions_overview(client)
     except Exception as e: 
         print('the error occured:',{e})
-    finally:    
+    finally:
         client.disconnect_api()
 
 
