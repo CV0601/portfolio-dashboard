@@ -3,11 +3,11 @@ import os
 from pathlib import Path
 import mysql.connector
 
-def db_connection():
+def connect_to_db():
     # load environment variables
     dotenv_path_db = Path(r'C:\Users\caspe\Documents\python projects\tws trading\.env')
-    print(dotenv_path_db)
     load_dotenv(dotenv_path=dotenv_path_db)
+    print(os.getenv('host_db'))
     try:
         # Connect to database
         conn = mysql.connector.connect(
@@ -23,3 +23,19 @@ def db_connection():
     except Exception as e:
         print("❌ Connection failed: ", str(e))
         return None
+
+def disconnect_db(conn, cursor = None):
+    
+    if cursor and not cursor.closed:
+        print("Closing Cursor")
+        cursor.close()
+        
+    if conn.is_connected():
+        conn.close()
+        print("Closed connection to database")
+    else:
+        print("Not connected, call 'connect_to_db()' to start a connection.")
+        
+conn = connect_to_db()
+cursor = conn.cursor
+disconnect_db(conn)    
