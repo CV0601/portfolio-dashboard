@@ -5,3 +5,4 @@ pathlib
 dotenv
 mysql-connector-python
 ipykernel
+numpy

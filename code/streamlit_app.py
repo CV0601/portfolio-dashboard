@@ -4,6 +4,7 @@ import math
 import datetime as dt
 from pathlib import Path
 import mysql.connector
+import numpy as np
 
 logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
 date_today = dt.date.today()
@@ -183,26 +184,29 @@ with col3:
     #             delta_color=delta_color
     #         )
 with col4:
-    # 1. Set headers
-    df['Open Position Summary'].columns = df['Open Position Summary'].iloc[1]
+    # 1. Set headers from row 1
+    df_pos = df['Open Position Summary'].copy()
+    df_pos.columns = df_pos.iloc[1]
 
-    # 2. Remove the header rows
-    df['Open Position Summary'] = df['Open Position Summary'].iloc[2:].copy()
+    # 2. Remove header rows and reset index
+    df_pos = df_pos.iloc[2:].reset_index(drop=True)
 
-    # 3. Convert to datetime
-    df['Open Position Summary']['Date'] = pd.to_datetime(df['Open Position Summary']['Date'], errors='coerce')
+    # 3. Drop rows where Symbol is NaN and assign back
+    df_pos = df_pos.dropna(subset=["Symbol"]).reset_index(drop=True)
 
-    # 4. Drop rows where Symbol is NaN
-    df['Open Position Summary'].dropna(subset=["Symbol"], inplace=True)
+    # 4. Drop 'Sector' column if exists
+    if "Sector" in df_pos.columns:
+        df_pos = df_pos.drop(columns=["Sector"])
 
-    # 5. Ensure 'Sector' column exists before dropping
-    if "Sector" in df['Open Position Summary'].columns:
-        df['Open Position Summary'].drop(columns=["Sector"], inplace=True)
+    # 5. Slice columns by name if possible, otherwise by iloc carefully
+    cols_wanted = df_pos.columns[5:12]
+    df_unclean = df_pos.loc[:, cols_wanted].copy()
 
-    # 6. Slice columns (if you're sure you want cols 5 to 12 *after* Sector is dropped)
-    df_unclean = df['Open Position Summary'].iloc[:, 5:12]
-    df_unclean = df_unclean.fillna('N/A')
+    # 6. Replace empty strings and fill NaNs
+    df_unclean.replace(r'^\s*$', np.nan, regex=True, inplace=True)
+    df_display = df_unclean
     df_display = clean_for_streamlit(df_unclean)
     
+    print(df_display.dtypes)        
     st.subheader(f'Holdings as of {formatted_date_today}', divider='blue')
-    st.table(df_display)
+    st.write(df_display)
