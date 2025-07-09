@@ -46,12 +46,20 @@ def get_data():
     return df_dict
 
 df = get_data()
+
 def clean_for_streamlit(df):
     df = df.copy()
     df.columns = df.columns.map(str)
     df = df.astype(object).where(pd.notnull(df), None)
-    for col in df.select_dtypes(include=['int64', 'float64']).columns:
-        df[col] = df[col].apply(lambda x: int(x) if pd.notnull(x) else None)
+
+    for col in df.columns:
+        if df[col].dtype == 'float64' or df[col].dtype == 'int64':
+            df[col] = df[col].astype(object)
+        elif pd.api.types.is_numeric_dtype(df[col]):
+             df[col] = df[col].apply(lambda x: float(x) if pd.notnull(x) else None)
+        elif pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].astype(str)
+
     return df
 # -----------------------------------------------------------------------------
 # Draw the actual page
@@ -197,16 +205,29 @@ with col4:
     # 4. Drop 'Sector' column if exists
     if "Sector" in df_pos.columns:
         df_pos = df_pos.drop(columns=["Sector"])
-
+ 
     # 5. Slice columns by name if possible, otherwise by iloc carefully
     cols_wanted = df_pos.columns[5:12]
     df_unclean = df_pos.loc[:, cols_wanted].copy()
 
     # 6. Replace empty strings and fill NaNs
-    df_unclean.replace(r'^\s*$', np.nan, regex=True, inplace=True)
-    df_display = df_unclean
+    df_unclean.replace(r'^\s*$', pd.NA, regex=True, inplace=True)
+
+    # 7. Convert numeric-looking columns to native Python types
+    numeric_cols = ['Quantity', 'ClosePrice', 'Value', 'Cost Basis', 'UnrealizedP&L']
+    for col in numeric_cols:
+        if col in df_unclean.columns:
+            df_unclean[col] = pd.to_numeric(df_unclean[col], errors='coerce')
+
+    # 8. Replace <NA> with None for Streamlit compatibility
+    df_unclean = df_unclean.where(pd.notnull(df_unclean), None)
+
+    # 9. Clean for Streamlit
     df_display = clean_for_streamlit(df_unclean)
-    
-    print(df_display.dtypes)        
+
+    df_display = df_display.loc[:, df_display.columns.notna()]
+
+    # 10. Display
     st.subheader(f'Holdings as of {formatted_date_today}', divider='blue')
     st.write(df_display)
+
