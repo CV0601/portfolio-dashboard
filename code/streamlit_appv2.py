@@ -88,22 +88,39 @@ st.markdown(
 top_left, top_right = st.columns(2)
 bottom_left, bottom_right = st.columns(2)
 
+
 # Top Left: Holdings
 with top_left:
     st.subheader("💼 Current Holdings")
     holdings_df = df_dict.get("Open Position Summary", pd.DataFrame()).copy()
     if not holdings_df.empty:
         holdings_df = holdings_df.dropna(axis=1, how='all')
+        
+        if 'Date' in holdings_df.columns:
+            holdings_df = holdings_df[~holdings_df['Date'].astype(str).str.contains("Total", na=False)]
+        
+        cols_to_drop = ['FinancialInstrument', 'Currency', 'Sector', 'Quantity', 'ClosePrice', 'FXRateToBase']
+        holdings_df = holdings_df.drop(columns=[col for col in cols_to_drop if col in holdings_df.columns], errors='ignore')
+
+        # Calculate NAV
+        if 'Value' in holdings_df.columns:
+            holdings_df['Value'] = pd.to_numeric(holdings_df['Value'], errors='coerce')
+            total_value = holdings_df['Value'].sum()
+            holdings_df['NAV_raw'] = holdings_df['Value'] / total_value
+            holdings_df['NAV'] = holdings_df['NAV_raw'].apply(lambda x: f"{x:.2%}" if pd.notnull(x) else "")
+            holdings_df = holdings_df.sort_values(by='NAV_raw', ascending=False).drop(columns='NAV_raw')
+
         st.dataframe(holdings_df)
+
     else:
         st.warning("No holdings data available.")
+
 
 # Top Right: Performance Chart
 with top_right:
     st.subheader("📈 Portfolio Performance")
     show_portfolio = st.checkbox("Show Portfolio", value=True)
     show_benchmark = st.checkbox("Show MSCI ACWI", value=True)
-
     perf_df = df_dict.get("Time Period Benchmark Comparison", pd.DataFrame()).copy()
     if not perf_df.empty:
         perf_df = perf_df.dropna(axis=1, how='all')
@@ -146,20 +163,50 @@ with top_right:
 # Bottom Left: Summary Stats
 with bottom_left:
     st.subheader("📊 Summary Statistics")
-    key_stats_df = df_dict.get("Key Statistics", pd.DataFrame()).copy()
+
     risk_df = df_dict.get("Risk Measures Benchmark Comparison", pd.DataFrame()).copy()
-    if not key_stats_df.empty:
-        key_stats_df = key_stats_df.dropna(axis=1, how='all')
-        st.markdown("**Key Statistics**")
-        st.dataframe(key_stats_df)
-    else:
-        st.warning("No key statistics available.")
+
     if not risk_df.empty:
         risk_df = risk_df.dropna(axis=1, how='all')
-        st.markdown("**Risk Measures**")
-        st.dataframe(risk_df)
+        # Extract metrics
+        def get_metric(label, fmt):
+            row = risk_df[risk_df.iloc[:, 0] == label]
+            if label == "Beta:":
+                value = row.iloc[0, 2]
+            else:
+                value = row.iloc[0, 4]
+            
+            try: 
+                value = float(value)
+                if fmt == "percent":
+                    return f"{value:.2%}"
+                if fmt == "volatility":
+                    return f"{(value-1):.2%}"
+                if fmt == "float":
+                    return f"{value:.2f}"
+            except:
+                return "N/A"
+
+        mean_return = get_metric("Mean Return:", "percent")
+        volatility = get_metric("Standard Deviation:", "volatility")
+        sharpe = get_metric("Sharpe Ratio:", "float")
+        beta = get_metric("Beta:", "float")
+
+        # Display in 2x2 layout
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(label="Mean Return", value=mean_return)
+        with col2:
+            st.metric(label="Volatility", value=volatility)
+
+        col3, col4 = st.columns(2)
+        with col3:
+            st.metric(label="Sharpe Ratio", value=sharpe)
+        with col4:
+            st.metric(label="Beta", value=beta)
     else:
         st.warning("No risk measures available.")
+
 
 # Bottom Right: Placeholder
 with bottom_right:
