@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import datetime as dt
+import plotly.express as px
 
 logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
 date_today = dt.date.today()
@@ -120,7 +121,20 @@ with top_right:
 
             chart_data = perf_df.set_index('Date')[[col for col in ['Portfolio', 'MSCI ACWI'] if col in perf_df.columns]]
             if not chart_data.empty:
-                st.line_chart(chart_data)
+                fig = px.line(chart_data, title = 'Portfolio performance vs Benchmark')
+                fig.update_xaxes(
+                    rangeslider_visible=True,
+                    rangeselector=dict(
+                        buttons=list([
+                            dict(count=1, label="1m", step="month", stepmode="backward"),
+                            dict(count=6, label="6m", step="month", stepmode="backward"),
+                            dict(count=1, label="YTD", step="year", stepmode="todate"),
+                            dict(count=1, label="1y", step="year", stepmode="backward"),
+                            dict(step="all")
+                        ])
+                    )
+                )
+                st.plotly_chart(fig, theme = 'streamlit')
             else:
                 st.info("Please select at least one line to display.")
         else:

@@ -6,3 +6,4 @@ dotenv
 mysql-connector-python
 ipykernel
 numpy
+plotly.express
