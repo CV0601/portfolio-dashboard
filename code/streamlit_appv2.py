@@ -8,6 +8,7 @@ import numpy as np
 
 logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
 date_today = dt.date.today()
+DATA_FILENAME = Path(__file__).parent/'data/data_07_10_2025.csv'
 formatted_date_today = date_today.strftime('%d-%m-%Y')
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
@@ -17,10 +18,28 @@ st.set_page_config(
 )
 # Load and parse the CSV into a dictionary of DataFrames
 @st.cache_data
-def load_data():
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/data_07_10_2025.csv'
-    raw_df = pd.read_csv(DATA_FILENAME, header = None,)
+def load_padded_csv(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    max_cols = max(len(line.strip().split(",")) for line in lines)
+    padded_lines = [
+        line.strip().split(",") + [""] * (max_cols - len(line.strip().split(",")))
+        for line in lines
+    ]
+    return pd.DataFrame(padded_lines)
+
+def safe_read_csv(file_path, **kwargs):
+    try:
+        return pd.read_csv(file_path, **kwargs)
+    except pd.errors.ParserError:
+        print("⚠️ ParserError encountered. Falling back to padded CSV loader.")
+        return load_padded_csv(file_path)
+
+@st.cache_data
+def load_data(DATA_FILENAME):
+    raw_df = safe_read_csv(DATA_FILENAME, header=None)
+
     section_col = raw_df.columns[0]
     section_names = raw_df[section_col].dropna().unique()
 
@@ -28,7 +47,6 @@ def load_data():
     for section in section_names:
         section_df = raw_df[raw_df[section_col] == section].copy().reset_index(drop=True)
 
-        # Try to find header row
         header_row = section_df[section_df[1] == 'Header']
         if not header_row.empty:
             header_idx = header_row.index[0]
@@ -45,7 +63,7 @@ def load_data():
     return df_dict
 
 def load_returns_from_csv(file_path):
-    df = pd.read_csv(file_path, header=None)
+    df = safe_read_csv(file_path, header=None)
     section_col = df.columns[0]
     section_name = "Time Period Benchmark Comparison"
     section_df = df[df[section_col] == section_name].copy().reset_index(drop=True)
@@ -61,6 +79,7 @@ def load_returns_from_csv(file_path):
         return data.reset_index(drop=True)
     else:
         return pd.DataFrame()
+
 
 def simulate_future_nav_paths_with_realized(returns_df, num_scenarios=1500, forecast_days=252):
     returns_df['Date'] = pd.to_datetime(returns_df['Date'], errors='coerce')
@@ -131,7 +150,7 @@ def simulate_future_nav_paths_with_realized(returns_df, num_scenarios=1500, fore
 
 
 # calling functions
-df_dict = load_data()
+df_dict = load_data(DATA_FILENAME)
 #----------------------------------------------------------------------#
 # Streamlit layout
 # Set the title that appears at the top of the page.
@@ -319,7 +338,7 @@ with bottom_right:
     st.subheader("🔮 Experimental: Future NAV Simulation")
     num_scenarios = 1500
     forecast_days = 252
-    returns_df = load_returns_from_csv("data/data_test_24052025.csv")
+    returns_df = load_returns_from_csv(DATA_FILENAME)
     fig = simulate_future_nav_paths_with_realized(returns_df, num_scenarios, forecast_days)
     st.plotly_chart(fig, use_container_width=True)
 
