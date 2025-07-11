@@ -3,6 +3,8 @@ import pandas as pd
 from pathlib import Path
 import datetime as dt
 import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
 
 logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
 date_today = dt.date.today()
@@ -17,8 +19,8 @@ st.set_page_config(
 @st.cache_data
 def load_data():
     # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/data_test_24052025.csv'
-    raw_df = pd.read_csv(DATA_FILENAME, header = None)
+    DATA_FILENAME = Path(__file__).parent/'data/data_07_10_2025.csv'
+    raw_df = pd.read_csv(DATA_FILENAME, header = None,)
     section_col = raw_df.columns[0]
     section_names = raw_df[section_col].dropna().unique()
 
@@ -42,9 +44,95 @@ def load_data():
 
     return df_dict
 
-# Load data
-df_dict = load_data()
+def load_returns_from_csv(file_path):
+    df = pd.read_csv(file_path, header=None)
+    section_col = df.columns[0]
+    section_name = "Time Period Benchmark Comparison"
+    section_df = df[df[section_col] == section_name].copy().reset_index(drop=True)
 
+    header_row = section_df[section_df[1] == 'Header']
+    if not header_row.empty:
+        header_idx = header_row.index[0]
+        headers = section_df.iloc[header_idx].values[2:]
+        data = section_df.iloc[header_idx + 1:].copy()
+        data.columns = ['Meta', 'Type'] + list(headers)
+        data = data.drop(columns=['Meta', 'Type'], errors='ignore')
+        data = data.loc[:, data.columns.notna()]
+        return data.reset_index(drop=True)
+    else:
+        return pd.DataFrame()
+
+def simulate_future_nav_paths_with_realized(returns_df, num_scenarios=1500, forecast_days=252):
+    returns_df['Date'] = pd.to_datetime(returns_df['Date'], errors='coerce')
+    returns_df['U14552292Return'] = pd.to_numeric(returns_df['U14552292Return'], errors='coerce') / 100
+    returns_df = returns_df.dropna(subset=['Date', 'U14552292Return'])
+    returns_df['Realized_NAV'] = (1 + returns_df['U14552292Return']).cumprod()
+
+    last_date = returns_df['Date'].max()
+    three_months_ago = last_date - pd.DateOffset(months=3)
+    realized_df = returns_df[returns_df['Date'] >= three_months_ago].copy()
+
+    mu = returns_df['U14552292Return'].mean()
+    sigma = returns_df['U14552292Return'].std()
+    last_nav = returns_df['Realized_NAV'].iloc[-1]
+
+    dt = 1
+    random_returns = np.random.normal(loc=mu * dt, scale=sigma * np.sqrt(dt), size=(forecast_days, num_scenarios))
+    nav_paths = np.zeros_like(random_returns)
+    nav_paths[0] = last_nav
+    for t in range(1, forecast_days):
+        nav_paths[t] = nav_paths[t - 1] * (1 + random_returns[t])
+
+    percentiles = {
+        '5th': np.percentile(nav_paths, 5, axis=1),
+        '25th': np.percentile(nav_paths, 25, axis=1),
+        '50th': np.percentile(nav_paths, 50, axis=1),
+        '75th': np.percentile(nav_paths, 75, axis=1),
+        '95th': np.percentile(nav_paths, 95, axis=1),
+    }
+
+    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=forecast_days)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=realized_df['Date'], y=realized_df['Realized_NAV'],
+                             mode='lines', name='Realized NAV', line=dict(color='black', width=2)))
+    fig.add_trace(go.Scatter(x=future_dates, y=percentiles['95th'], line=dict(width=0), showlegend=False))
+    fig.add_trace(go.Scatter(x=future_dates, y=percentiles['5th'], fill='tonexty',
+                             fillcolor='rgba(0, 123, 255, 0.1)', line=dict(width=0), name='5th-95th Percentile'))
+    fig.add_trace(go.Scatter(x=future_dates, y=percentiles['75th'], line=dict(width=0), showlegend=False))
+    fig.add_trace(go.Scatter(x=future_dates, y=percentiles['25th'], fill='tonexty',
+                             fillcolor='rgba(0, 123, 255, 0.3)', line=dict(width=0), name='25th-75th Percentile'))
+    fig.add_trace(go.Scatter(x=future_dates, y=percentiles['50th'],
+                             line=dict(color='blue', width=2), name='Median Forecast'))
+
+    fig.update_layout(
+        title='Realized and Simulated Future NAV Paths',
+        xaxis=dict(
+            title=dict(text='Date', font=dict(color='black')),
+            tickfont=dict(color='black'),
+            showgrid=True,
+            gridcolor='lightgray'
+        ),
+        yaxis=dict(
+            title=dict(text='NAV', font=dict(color='black')),
+            tickfont=dict(color='black'),
+            showgrid=True,
+            gridcolor='lightgray'
+        ),
+        font=dict(color='black'),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        legend=dict(
+            font=dict(color='black'),
+            bgcolor='white'
+        )
+    )
+    return fig
+
+
+# calling functions
+df_dict = load_data()
+#----------------------------------------------------------------------#
 # Streamlit layout
 # Set the title that appears at the top of the page.
 st.markdown(
@@ -90,15 +178,16 @@ bottom_left, bottom_right = st.columns(2)
 
 
 # Top Left: Holdings
+
 with top_left:
     st.subheader("💼 Current Holdings")
     holdings_df = df_dict.get("Open Position Summary", pd.DataFrame()).copy()
     if not holdings_df.empty:
         holdings_df = holdings_df.dropna(axis=1, how='all')
-        
+
         if 'Date' in holdings_df.columns:
             holdings_df = holdings_df[~holdings_df['Date'].astype(str).str.contains("Total", na=False)]
-        
+
         cols_to_drop = ['FinancialInstrument', 'Currency', 'Sector', 'Quantity', 'ClosePrice', 'FXRateToBase']
         holdings_df = holdings_df.drop(columns=[col for col in cols_to_drop if col in holdings_df.columns], errors='ignore')
 
@@ -108,12 +197,29 @@ with top_left:
             total_value = holdings_df['Value'].sum()
             holdings_df['NAV_raw'] = holdings_df['Value'] / total_value
             holdings_df['NAV'] = holdings_df['NAV_raw'].apply(lambda x: f"{x:.2%}" if pd.notnull(x) else "")
-            holdings_df = holdings_df.sort_values(by='NAV_raw', ascending=False).drop(columns='NAV_raw')
+            holdings_df = holdings_df.sort_values(by='NAV_raw', ascending=False)
 
-        st.dataframe(holdings_df)
 
+        # Toggle between table and pie chart
+        view_option = st.radio("Select view:", ["Table", "Pie Chart"], horizontal=True)
+
+        if view_option == "Table":
+            st.dataframe(holdings_df.drop(columns='NAV_raw'))
+        else:
+            name_col = 'Description' if 'Description' in holdings_df.columns else 'Symbol'
+            if 'Value' in holdings_df.columns and name_col in holdings_df.columns:
+                fig = px.pie(
+                    holdings_df,
+                    names=name_col,
+                    values='Value',
+                    title='NAV Distribution by Asset'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Required columns for pie chart not found.")
     else:
         st.warning("No holdings data available.")
+
 
 
 # Top Right: Performance Chart
@@ -210,7 +316,10 @@ with bottom_left:
 
 # Bottom Right: Placeholder
 with bottom_right:
-    st.subheader("🧩 Coming Soon")
-    st.write("This space is reserved for future features.")
-
+    st.subheader("🔮 Experimental: Future NAV Simulation")
+    num_scenarios = 1500
+    forecast_days = 252
+    returns_df = load_returns_from_csv("data/data_test_24052025.csv")
+    fig = simulate_future_nav_paths_with_realized(returns_df, num_scenarios, forecast_days)
+    st.plotly_chart(fig, use_container_width=True)
 
