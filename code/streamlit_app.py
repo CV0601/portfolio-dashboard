@@ -148,7 +148,12 @@ def simulate_future_nav_paths_with_realized(returns_df, num_scenarios=1500, fore
     )
     return fig
 
-
+def calculate_cumulative_nav(df, start_date):
+    df = df[df['Date'] >= start_date].copy()
+    # set NAV value to 1 for correct comparison
+    df['Portfolio'] = (1 + df['U14552292Return'] / 100).cumprod()
+    df['MSCI ACWI'] = (1 + df['BM1Return'] / 100).cumprod()
+    return df
 # calling functions
 df_dict = load_data(DATA_FILENAME)
 #----------------------------------------------------------------------#
@@ -244,43 +249,92 @@ with top_left:
 # Top Right: Performance Chart
 with top_right:
     st.subheader("📈 Portfolio Performance")
+
+    # Toggles
     show_portfolio = st.checkbox("Show Portfolio", value=True)
     show_benchmark = st.checkbox("Show MSCI ACWI", value=True)
+
+    # Timeframe selector (app-level so we can recompute and rebase properly)
+    timeframe = st.radio(
+        "Timeframe",
+        options=["3M", "6M", "YTD", "1Y", "All"],
+        index=2,  # default to YTD
+        horizontal=True
+    )
+
     perf_df = df_dict.get("Time Period Benchmark Comparison", pd.DataFrame()).copy()
+
     if not perf_df.empty:
         perf_df = perf_df.dropna(axis=1, how='all')
-        if 'Date' in perf_df.columns:
+
+        if 'Date' not in perf_df.columns:
+            st.warning("Date column not found in performance data.")
+        else:
+            # --- Helpers ---
+            def get_window_start(last_dt: pd.Timestamp, tf: str) -> pd.Timestamp:
+                if tf == "YTD":
+                    return pd.Timestamp(year=last_dt.year, month=1, day=1)
+                elif tf == "3M":
+                    return last_dt - pd.DateOffset(months=3)
+                elif tf == "6M":
+                    return last_dt - pd.DateOffset(months=6)
+                elif tf == "1Y":
+                    return last_dt - pd.DateOffset(years=1)
+                else:  # "All"
+                    return pd.Timestamp.min  # we'll clamp to min available
+
+            # --- Clean base dataframe ---
             perf_df['Date'] = pd.to_datetime(perf_df['Date'], errors='coerce')
-            perf_df = perf_df.dropna(subset=['Date'])
+            perf_df = perf_df.dropna(subset=['Date']).sort_values('Date')
 
-            if show_portfolio and 'U14552292Return' in perf_df.columns:
-                perf_df['U14552292Return'] = pd.to_numeric(perf_df['U14552292Return'], errors='coerce')
-                perf_df['Portfolio'] = (1 + perf_df['U14552292Return'] / 100).cumprod()
+            # Determine window and slice
+            last_date = perf_df['Date'].max()
+            start_date = get_window_start(last_date, timeframe)
+            window_df = perf_df[perf_df['Date'] >= max(start_date, perf_df['Date'].min())].copy()
 
-            if show_benchmark and 'BM1Return' in perf_df.columns:
-                perf_df['BM1Return'] = pd.to_numeric(perf_df['BM1Return'], errors='coerce')
-                perf_df['MSCI ACWI'] = (1 + perf_df['BM1Return'] / 100).cumprod()
+            # Build cumulative-from-window series
+            series_cols = {}
+            if show_portfolio and 'U14552292Return' in window_df.columns:
+                window_df['U14552292Return'] = pd.to_numeric(window_df['U14552292Return'], errors='coerce') / 100.0
+                series_cols['Portfolio'] = (1 + window_df['U14552292Return']).cumprod() - 1
 
-            chart_data = perf_df.set_index('Date')[[col for col in ['Portfolio', 'MSCI ACWI'] if col in perf_df.columns]]
-            if not chart_data.empty:
-                fig = px.line(chart_data, title = 'Portfolio performance vs Benchmark')
-                fig.update_xaxes(
-                    rangeslider_visible=True,
-                    rangeselector=dict(
-                        buttons=list([
-                            dict(count=1, label="1m", step="month", stepmode="backward"),
-                            dict(count=6, label="6m", step="month", stepmode="backward"),
-                            dict(count=1, label="YTD", step="year", stepmode="todate"),
-                            dict(count=1, label="1y", step="year", stepmode="backward"),
-                            dict(step="all")
-                        ])
+            if show_benchmark and 'BM1Return' in window_df.columns:
+                window_df['BM1Return'] = pd.to_numeric(window_df['BM1Return'], errors='coerce') / 100.0
+                series_cols['MSCI ACWI'] = (1 + window_df['BM1Return']).cumprod() - 1
+
+            # Assemble plotting frame
+            if series_cols:
+                chart_data = pd.DataFrame({'Date': window_df['Date']})
+                for name, ser in series_cols.items():
+                    chart_data[name] = ser.values
+                chart_data = chart_data.set_index('Date').dropna(how='all')
+
+                if chart_data.empty:
+                    st.info("No valid data to display for the selected timeframe.")
+                else:
+                    fig = px.line(
+                        chart_data,
+                        title=f'Portfolio vs Benchmark — Cumulative Return (since {timeframe} start)',
                     )
-                )
-                st.plotly_chart(fig, theme = 'streamlit')
+                    # Format y-axis as percent and keep a rangeslider for convenience
+                    fig.update_layout(
+                        yaxis=dict(title='Cumulative Return', tickformat=".0%"),
+                        xaxis=dict(
+                            title='Date',
+                            rangeslider=dict(visible=True),
+                            # No rangeselector here—our app-level selector does the rebasing
+                        ),
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        legend=dict(bgcolor='white')
+                    )
+                    # Grid styling (optional)
+                    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+                    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
+
+                    st.plotly_chart(fig, theme='streamlit', use_container_width=True)
             else:
                 st.info("Please select at least one line to display.")
-        else:
-            st.warning("Date column not found in performance data.")
     else:
         st.warning("No performance data available.")
 
