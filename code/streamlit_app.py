@@ -114,7 +114,7 @@ def simulate_future_nav_paths_with_realized(returns_df, num_scenarios=1500, fore
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=realized_df['Date'], y=realized_df['Realized_NAV'],
-                             mode='lines', name='Realized NAV', line=dict(color='black', width=2)))
+                             mode='lines', name='Realized NAV', line=dict(color='white', width=2)))
     fig.add_trace(go.Scatter(x=future_dates, y=percentiles['95th'], line=dict(width=0), showlegend=False))
     fig.add_trace(go.Scatter(x=future_dates, y=percentiles['5th'], fill='tonexty',
                              fillcolor='rgba(0, 123, 255, 0.1)', line=dict(width=0), name='5th-95th Percentile'))
@@ -126,21 +126,21 @@ def simulate_future_nav_paths_with_realized(returns_df, num_scenarios=1500, fore
 
     fig.update_layout(
         title='Realized and Simulated Future NAV Paths',
+        template='plotly_white',
         xaxis=dict(
-            title=dict(text='Date', font=dict(color='black')),
-            tickfont=dict(color='black'),
+            title=dict(text='Date', font=dict(color='white')),
+            tickfont=dict(color='white'),
             showgrid=True,
-            gridcolor='lightgray'
+            gridcolor='white',
         ),
         yaxis=dict(
-            title=dict(text='NAV', font=dict(color='black')),
-            tickfont=dict(color='black'),
+            title=dict(text='NAV', font=dict(color='white')),
+            tickfont=dict(color='white'),
             showgrid=True,
-            gridcolor='lightgray'
+            gridcolor='white'
+            
         ),
         font=dict(color='black'),
-        plot_bgcolor='white',
-        paper_bgcolor='white',
         legend=dict(
             font=dict(color='black'),
             bgcolor='white'
@@ -249,11 +249,6 @@ with top_left:
 # Top Right: Performance Chart
 with top_right:
     st.subheader("📈 Portfolio Performance")
-
-    # Toggles
-    show_portfolio = st.checkbox("Show Portfolio", value=True)
-    show_benchmark = st.checkbox("Show MSCI ACWI", value=True)
-
     # Timeframe selector (app-level so we can recompute and rebase properly)
     timeframe = st.radio(
         "Timeframe",
@@ -294,13 +289,12 @@ with top_right:
 
             # Build cumulative-from-window series
             series_cols = {}
-            if show_portfolio and 'U14552292Return' in window_df.columns:
-                window_df['U14552292Return'] = pd.to_numeric(window_df['U14552292Return'], errors='coerce') / 100.0
-                series_cols['Portfolio'] = (1 + window_df['U14552292Return']).cumprod() - 1
 
-            if show_benchmark and 'BM1Return' in window_df.columns:
-                window_df['BM1Return'] = pd.to_numeric(window_df['BM1Return'], errors='coerce') / 100.0
-                series_cols['MSCI ACWI'] = (1 + window_df['BM1Return']).cumprod() - 1
+            window_df['U14552292Return'] = pd.to_numeric(window_df['U14552292Return'], errors='coerce') / 100.0
+            series_cols['Portfolio'] = (1 + window_df['U14552292Return']).cumprod() - 1
+
+            window_df['BM1Return'] = pd.to_numeric(window_df['BM1Return'], errors='coerce') / 100.0
+            series_cols['MSCI ACWI'] = (1 + window_df['BM1Return']).cumprod() - 1
 
             # Assemble plotting frame
             if series_cols:
@@ -314,15 +308,19 @@ with top_right:
                 else:
                 # Build the figure (keep your chart_data and title logic as-is)
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=chart_data['Date'], y=chart_data['Portfolio'], mode='lines+markers', name='Portfolio'))
-                    fig.add_trace(go.Scatter(x=chart_data['Date'], y=chart_data['MSCI ACWI'], mode='lines+markers', name='MSCI ACWI'))
+                    fig.add_trace(go.Scatter(x=chart_data.index, y=chart_data['Portfolio'], mode='lines', name='Portfolio'))
+                    fig.add_trace(go.Scatter(x=chart_data.index, y=chart_data['MSCI ACWI'], mode='lines', name='MSCI ACWI'))
 
                     # Customize layout
                     fig.update_layout(
-                        title='Portfolio value vs Benchmarkt, cumulative returns',
+                        title='Portfolio value vs Benchmark, cumulative returns',
                         xaxis_title='Date',
                         yaxis_title='Value',
-                        legend_title='Series'
+                        legend_title='Series',
+                        template='plotly_white',
+                        title_font=dict(size=20),
+                        margin=dict(l=40, r=40, t=60, b=40),
+                        yaxis=dict(showgrid=True, gridcolor='lightgray', tickformat = '.0%')  # Horizontal gridlines
                     )
                     st.plotly_chart(fig, theme=None, use_container_width=True)
             else:
