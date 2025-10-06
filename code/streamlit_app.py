@@ -8,7 +8,7 @@ import numpy as np
 
 logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
 date_today = dt.date.today()
-DATA_FILENAME = Path(__file__).parent/'data/data_07_10_2025.csv'
+DATA_FILENAME = Path(__file__).parent/'data/data_10_03_2025.csv'
 formatted_date_today = date_today.strftime('%d-%m-%Y')
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
