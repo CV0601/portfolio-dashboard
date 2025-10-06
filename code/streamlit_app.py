@@ -312,27 +312,19 @@ with top_right:
                 if chart_data.empty:
                     st.info("No valid data to display for the selected timeframe.")
                 else:
-                    fig = px.line(
-                        chart_data,
-                        title=f'Portfolio vs Benchmark — Cumulative Return (since {timeframe} start)',
-                    )
-                    # Format y-axis as percent and keep a rangeslider for convenience
-                    fig.update_layout(
-                        yaxis=dict(title='Cumulative Return', tickformat=".0%"),
-                        xaxis=dict(
-                            title='Date',
-                            rangeslider=dict(visible=True),
-                            # No rangeselector here—our app-level selector does the rebasing
-                        ),
-                        plot_bgcolor='white',
-                        paper_bgcolor='white',
-                        legend=dict(bgcolor='white')
-                    )
-                    # Grid styling (optional)
-                    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
-                    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
+                # Build the figure (keep your chart_data and title logic as-is)
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=chart_data['Date'], y=chart_data['Portfolio'], mode='lines+markers', name='Portfolio'))
+                    fig.add_trace(go.Scatter(x=chart_data['Date'], y=chart_data['MSCI ACWI'], mode='lines+markers', name='MSCI ACWI'))
 
-                    st.plotly_chart(fig, theme='streamlit', use_container_width=True)
+                    # Customize layout
+                    fig.update_layout(
+                        title='Portfolio value vs Benchmarkt, cumulative returns',
+                        xaxis_title='Date',
+                        yaxis_title='Value',
+                        legend_title='Series'
+                    )
+                    st.plotly_chart(fig, theme=None, use_container_width=True)
             else:
                 st.info("Please select at least one line to display.")
     else:
