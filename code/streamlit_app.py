@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 
-logo_url = 'https://einderinvestments.nl/wp-content/uploads/2024/09/Verticaal-Wit.png'
+logo_url = 'http://www.einder-investments.com/wp-content/uploads/2025/12/Horizontaal-Wit.png'
 date_today = dt.date.today()
 DATA_FILENAME = Path(__file__).parent/'data/data_10_03_2025.csv'
 formatted_date_today = date_today.strftime('%d-%m-%Y')
@@ -183,14 +183,14 @@ st.markdown(
     </style>
     
     <div class="title-container">
-        <img src="https://einderinvestments.nl/wp-content/uploads/2024/09/Horizontaal-Wit.png">
+        <img src="http://www.einder-investments.com/wp-content/uploads/2025/12/Horizontaal-Wit.png">
         <h1>Dashboard</h1>
     </div>
     <br>
     <div class="content">
         <p>Browse portfolio data of Einder Investments. Updated regularly to reflect current market conditions, strategy changes, and performance.</p>
         <p>You can find a performance chart, portfolio statistics, and a table with all current holdings.</p>
-        <p><strong>For inquiries:</strong> <a href="mailto:info@einderinvestments.nl">info@einderinvestments.nl</a></p>
+        <p><strong>For inquiries:</strong> <a href="mailto:info@einder-investments.com">info@einder-investments.com</a></p>
     </div>
     """,
     unsafe_allow_html=True
