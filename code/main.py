@@ -6,6 +6,7 @@ from ibapi.wrapper import *
 from threading import Thread , Lock
 import datetime as dt
 import warnings
+from logger import logger
 
 class TradingApp(EWrapper, EClient):
     def __init__(self, host, port, client_id):
@@ -18,7 +19,7 @@ class TradingApp(EWrapper, EClient):
         time.sleep(1)  # Give some time to establish connection
         # Check connection
         if self.isConnected():
-            print(f"Successfully connected to IB API")
+            logger.info("Successfully connected to IB API")
         else:
             raise ConnectionError("Failed to connect to IB API, did you login to the IBKR TWS Application?")
         
@@ -54,7 +55,7 @@ class TradingApp(EWrapper, EClient):
     
     def accountSummaryEnd(self, reqId: int):
         # unsubscribe from account summary
-        print("AccountSummaryEnd. reqId:", reqId)
+        logger.debug("AccountSummaryEnd. reqId: %s", reqId)
     
     def pnl(self, reqId, dailyPnL, unrealizedPnL, realizedPnL):
         """Receive current profit and loss of the current portfolio. Taking the request ID and receiving daily profit and loss, unrealized PnL and realized PnL.
@@ -91,7 +92,7 @@ class TradingApp(EWrapper, EClient):
         self._append_to_dataframe("pos_summary", data) 
     
     def positionEnd(self):
-        print("PositionEnd")
+        logger.debug("PositionEnd")
 
     def _append_to_dataframe(self, df_key: str, data: dict):
         """Append new data to the selected DataFrame."""
@@ -105,7 +106,7 @@ class TradingApp(EWrapper, EClient):
         # check connection, if true disconnect
         if self.isConnected():
             self.disconnect()
-            print("Disconnected from IB API")
+            logger.info("Disconnected from IB API")
             
 def daily_update(client):
     """Call daily update by receiving portfolio information and sending out email.
@@ -122,14 +123,14 @@ def daily_update(client):
     time.sleep(2)
     df_pnl_summary = client.dataframes["pnl_summary"]
     client.cancelPnL(2)
-    print('account pnl request canceled')
+    logger.info('account pnl request canceled')
     send_email(df_acc_summary, df_pnl_summary)
 
 def portfolio_positions_overview(client):
     client.reqPositions()
     time.sleep(1)
     client.cancelPositions()
-    print(client.position_summary)
+    logger.info("Position summary: %s", getattr(client, 'position_summary', None))
     return
 
 
@@ -140,7 +141,7 @@ def main():
         daily_update(client)
         # portfolio_positions_overview(client)
     except Exception as e: 
-        print('the error occured:',{e})
+        logger.exception('An error occurred in main: %s', e)
     finally:
         client.disconnect_api()
 

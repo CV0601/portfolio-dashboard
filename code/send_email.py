@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import datetime as dt
 import pandas as pd
+from logger import logger
 
 def send_email(df_summary, df_pnl):
     if df_summary.empty or df_pnl.empty:
@@ -29,7 +30,7 @@ def send_email(df_summary, df_pnl):
     body = f'Hello Casper,\n\nYour current portfolio value is €{portfolio_value}, with a daily PnL of €{daily_pnl}.\nThe current overall unrealized PnL of the portfolio is €{unrealized_pnl}. \nHopefully you have a good day! \nKind regards,\n\nInteractive Brokers API'
 
     if from_email is None or smtp_password is None:
-        print('Environment variables for email credentials are not set')
+        logger.error('Environment variables for email credentials are not set')
         exit(1)
 
     # Create the email message
@@ -46,8 +47,10 @@ def send_email(df_summary, df_pnl):
         
         # Send the email
         server.sendmail(from_email, to_email, msg.as_string())
-        return print('Email sent successfully')
+        logger.info('Email sent successfully')
+        return None
     except Exception as e:
-        return print(f'Failed to send email: {e}')
+        logger.exception('Failed to send email: %s', e)
+        return None
     finally:
         server.quit()

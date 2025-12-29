@@ -5,6 +5,7 @@ import datetime as dt
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+from logger import logger
 
 logo_url = 'http://www.einder-investments.com/wp-content/uploads/2025/12/Horizontaal-Wit.png'
 date_today = dt.date.today()
@@ -33,7 +34,7 @@ def safe_read_csv(file_path, **kwargs):
     try:
         return pd.read_csv(file_path, **kwargs)
     except pd.errors.ParserError:
-        print("⚠️ ParserError encountered. Falling back to padded CSV loader.")
+        logger.warning("⚠️ ParserError encountered. Falling back to padded CSV loader.")
         return load_padded_csv(file_path)
 
 @st.cache_data
